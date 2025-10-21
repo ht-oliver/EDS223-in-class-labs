@@ -266,7 +266,23 @@ terra::extract(zion_elevation, point)
 We can also subset raster objects based on the extent another raster object. Here we extract the values of our elevation raster that fall within the extent of a clipping raster that we create.
 
 ```{r}
+# ind the extent of current raster
+terra::ext(zion_elevation)
 
+#create a raster with a smaller extent
+clip <- rast(xmin = -113.2, xmax = -113, ymin = 37.2, ymax = 37.9, 
+             resolution = 0.3,
+             vals = 1)
+
+# select the values that fall within smaller extent
+zion_elevation_clip <- zion_elevation[clip]
+
+# verify that output has fewer values than original
+if(ncell(zion_elevation) == nrow(zion_elevation_clip)){
+  warning("clipping did not remove cells")
+} else {
+  print("clipping removed cells")
+}
 
 
 ```
@@ -277,8 +293,9 @@ In the previous example, we just got the values of the raster back (and lost the
 We can do this use the "[" operator and setting "drop = FALSE".
 
 ```{r}
+zion_elevation_clip <- zion_elevation[clip, drop = FALSE]
 
-
+zion_elevation_clip
 ```
 
 ```{r}
