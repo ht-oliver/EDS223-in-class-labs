@@ -108,13 +108,14 @@ elevation_masked <- mask(elevation, boundary)
 Often, we will want to combine both cropping and masking to reduce the size of the raster as much as possible.
 
 ```{r}
+elevation_final <- mask(elevation_cropped, boundary)
 
 ```
 
 In some cases, we may want to mask the raster cells **inside** of the boundaries (i.e. assign cells inside the park to `NA`). We can do so with `terra::mask()` by setting the argument `inverse = TRUE`.
 
 ```{r}
-
+elevation_inv_masked <- mask(elevation_cropped, boundary, inverse = TRUE)
 ```
 
 
@@ -170,6 +171,12 @@ The following example is relevant to homework assignment 3!
 In this example, we'll select grid cells higher than 2000 meters by masking the elevation raster. We'll then convert these grid cells into polygons using the `terra::as.polygons()` function and turn this into a `sf` object.
 
 ```{r}
+# Set all elevation values below 2000 to NA
+elevation_masked[elevation_masked < 2000] <- NA
+
+# Convert high elevation pixels into polygon shapes, and then transform into a sf
+elevation_mask_poly <- as.polygons(elevation_masked) %>% 
+  st_as_sf()
 
 
 ```
@@ -178,7 +185,7 @@ In this example, we'll select grid cells higher than 2000 meters by masking the 
 
 ```{r}
 
-map1 <- tm_shape(elevation_mask) +
+map1 <- tm_shape(elevation_masked) +
   tm_raster() +
   tm_title( text = "masked raster")+ 
   tm_layout(legend.position = c("left", "bottom"))
@@ -225,7 +232,7 @@ library(raster)
 
 ```{r}
 
-bryce = raster("data/Bryce_Canyon.tif")
+bryce = raster("week5/data/Bryce_Canyon.tif")
 
 bryce_mat = raster_to_matrix(bryce)
 
@@ -249,15 +256,15 @@ bryce_small %>%
   height_shade() %>% 
   
   add_overlay(sphere_shade(bryce_small, texture = "desert", 
-                           zscale=4, colorintensity = 5), alphalayer=0.5) %>%
+                           zscale=4, colorintensity = 10), alphalayer=0.5) %>%
   
-
+  # add hillshade shadow
   add_shadow(lamb_shade(bryce_small,zscale=6), 0) %>%
   
-
+  # better defines ridges
   add_shadow(ambient_shade(bryce_small), 0) %>%
   
-
+  #add texture shading
   add_shadow(texture_shade(bryce_small,detail=8/10,contrast=9,brightness = 11), 0.1) %>%
   plot_map()
 ```
