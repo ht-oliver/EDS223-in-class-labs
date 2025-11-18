@@ -327,6 +327,16 @@ We already processed our landsat data by cropping/masking to our area of interes
 The first step is to prepare our data for k-means clustering. Unlike the decision tree which can work directly with raster objects, k-means requires our data to be in a dataframe format. We'll extract the spectral band values for each pixel and then **scale** them. Scaling is critical for k-means because the algorithm measures distances between pixels - if one band has much larger values than another, it would dominate the clustering. Scaling puts all bands on the same scale so each contributes equally.
 
 ```{r}
+# convert raster to df and scale 
+landsat_df <- as.data.frame(landsat, xy = TRUE, na.rm = TRUE)
+
+# Extract the spectral bands for clustering
+spectral_data <- landsat_df[,c("blue", "green", "red", "NIR", "SWIR1",
+                               "SWIR2")]
+
+# scale the data
+spectral_data_scaled <- scale(spectral_data)
+
 
 ```
 
@@ -340,6 +350,16 @@ Unlike the decision tree, **k-means has no idea what "water" or "green vegetatio
 
 ```{r}
 
+# Set seed for reproducibility
+set.seed(223)
+
+# perform k means with k = 4. nstart specifies how many initial centroid throws to do
+kmeans_result <- kmeans(spectral_data_scaled, centers = 4, nstart = 25)
+
+# Add cluster assignment to dataframe
+landsat_df$cluster <- kmeans_result$cluster
+
+
 ```
 
 
@@ -348,7 +368,15 @@ Unlike the decision tree, **k-means has no idea what "water" or "green vegetatio
 The k-means algorithm has now assigned each pixel to one of 4 clusters (numbered 1-4). To visualize our results on a map, we need to convert these cluster assignments back into a raster format. We'll create an empty raster with the same dimensions as our original Landsat data, then fill it with the cluster numbers.
 
 ```{r}
+# Convert back to raster
+SB_classification_kmeans <- rast(landsat[[1]]) #copy landsat layer
+values(SB_classification_kmeans) <- NA #assign all values in that raster to NA
 
+# Take the x,y coordinate from landsat_df and convert them to cell numbers for the raster
+cells <- cellFromXY(SB_classification_kmeans, landsat_df[ , c("x", "y")])
+
+# Update cells with cluster value
+values(SB_classification_kmeans)[cells] <- landsat_df$cluster
 
 ```
 
@@ -365,7 +393,20 @@ We'll calculate the mean reflectance values for each band within each cluster. B
 - **Moderate values** → likely urban areas
 
 ```{r}
-
+# Look at cluster characteristics to determine landcover type
+landsat_df %>% 
+  group_by(cluster) %>% 
+  summarise(
+    blue = mean(blue),
+    green = mean(green),
+    red = mean(red),
+    NIR = mean(NIR),
+    SWIR1 = mean(SWIR1),
+    SWIR2 = mean(SWIR2)
+  ) %>% 
+  arrange(cluster) %>% 
+  knitr::kable(digits = 2,
+               caption = "Mean spectral values by Cluster")
 
 ```
 
