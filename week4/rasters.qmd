@@ -149,7 +149,7 @@ tmap_arrange(map1, map2, map3, nrow=1)
 
 ```
 
-
+plot
 ### Inspecting raster objects
 
 We can get info on raster values just by typing the name or using the summary function.
