@@ -229,6 +229,14 @@ Now, we can extract the spectral reflectance values at each site to create a dat
 training_data_values <- terra::extract(landsat, training_data, df = TRUE)
 
 # Convert training data to data frame
+training_data_attributes <- training_data %>% 
+  st_drop_geometry()
+
+# join training data attributes and extracted reflectance values
+SB_training_data <- left_join(training_data_values, training_data_attributes,
+                              by = c("ID" = "id")) %>% 
+  mutate(type = as.factor(type)) # converting landcover type to factor
+
 ```
 
 Next, let's train the decision tree classifier!
@@ -242,6 +250,16 @@ To train our decision tree, we first need to establish our model formula (i.e. w
 
 
 ```{r include=TRUE}
+# Establish model formula
+SB_formula <- type ~ red + green + blue + NIR + SWIR1 + SWIR2
+
+# train decision tree
+SB_decision_tree <- rpart(formula = SB_formula,
+                          data = SB_training_data,
+                          method = "class",
+                          na.action = na.omit)
+
+
 
 ```
 
@@ -253,6 +271,8 @@ To understand how our decision tree will classify pixels, we can plot the result
 :::
 
 ```{r}
+# Print decision tree
+prp(SB_decision_tree)
 
 ```
 
@@ -262,6 +282,13 @@ Now that we have a rule set for classifying spectral reflectance values into lan
 The `terra` package includes a `predict()` function that allows us to apply a model to our data. In order for this to work properly, the names of the layers need to match the column names of the predictors we used to train our decision tree. The `predict()` function will return a raster layer with integer values. These integer values correspond to the *factor levels* in the training data. To figure out what category each integer corresponds to, we can inspect the levels of our training data. 
 
 ```{r}
+# classify image based on decision tree
+SB_classification_dt <- terra::predict(landsat, SB_decision_tree, type = "class",
+                                       na.rm = TRUE)
+
+# inspect level to understand the order of classes in prediction
+levels(SB_training_data$type)
+
 
 ```
 
@@ -270,6 +297,19 @@ Now we can plot the results and check out our land cover map!
 
 ```{r}
 
+#plot results
+dt_plot <- tm_shape(SB_classification_dt) +
+  tm_raster(
+    col.scale = tm_scale(
+      values = c("#8DB580", "#F2DDA4", "#7E8987", "#6A8EAE"),
+      labels = c("green vegetation", "soil/dead grass", "urban", "water")
+    ),
+    col.legend = tm_legend("Landcover Type")
+  ) +
+  tm_title(text = "Decision Tree Landcover Classification") +
+  tm_layout(legend.position = c("left", "bottom"))
+
+dt_plot
 
 ```
 
